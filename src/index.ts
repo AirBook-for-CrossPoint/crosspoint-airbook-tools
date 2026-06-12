@@ -1,5 +1,15 @@
 import type { Env, BuildMetadata, CustomBuildMetadata, FontBuildMetadata, ThemeBuildMetadata, FontTree, FontFile, BetaBuild, BetaSource } from './types';
 
+// --- Fork configuration ---
+// This site serves firmware from the Yoddikko/crosspoint-reader fork (AirBook + upstream CrossPoint).
+// Set these env vars to override: FORK_REPO_OWNER, FORK_REPO_NAME, UPSTREAM_REPO_OWNER, UPSTREAM_REPO_NAME
+const FORK_OWNER = 'Yoddikko';
+const FORK_REPO = 'crosspoint-reader';
+const UPSTREAM_OWNER = 'crosspoint-reader';
+const UPSTREAM_REPO = 'crosspoint-reader';
+const FORK_FULL = `${FORK_OWNER}/${FORK_REPO}`;
+const UPSTREAM_FULL = `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`;
+
 const ROYALTY_REPO_ID = 'SoFriendly/crosspoint-tools';
 
 export default {
@@ -135,6 +145,9 @@ async function handleApi(
 
       case '/api/release/firmware':
         return handleReleaseFirmware(env, corsHeaders);
+
+      case '/api/upstream-status':
+        return handleUpstreamStatus(env, corsHeaders);
 
       case '/api/firmware/stock':
         return handleStockFirmware(url, env, corsHeaders);
@@ -503,13 +516,13 @@ async function handleManualTrigger(
   }
 
   // Look up the commit the workflow will actually build, so the caller can
-  // show it in the UI. The workflow itself queries crosspoint-reader@master,
+  // show it in the UI. The workflow itself queries the fork's master branch,
   // so we mirror that here.
   let commit = '';
   let commitShort = '';
   try {
     const commitRes = await fetch(
-      'https://api.github.com/repos/crosspoint-reader/crosspoint-reader/commits/master',
+      `https://api.github.com/repos/${FORK_FULL}/commits/master`,
       {
         headers: {
           'User-Agent': 'crosspoint-tools',
@@ -647,7 +660,7 @@ async function handleLatestRelease(
   headers: Record<string, string>
 ): Promise<Response> {
   const res = await fetch(
-    'https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest',
+    `https://api.github.com/repos/${FORK_FULL}/releases/latest`,
     { headers: ghFetchHeaders(env) }
   );
 
@@ -685,7 +698,7 @@ async function handleReleaseFirmware(
   headers: Record<string, string>
 ): Promise<Response> {
   const res = await fetch(
-    'https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest',
+    `https://api.github.com/repos/${FORK_FULL}/releases/latest`,
     { headers: ghFetchHeaders(env) }
   );
 
@@ -1000,7 +1013,7 @@ async function getSubscriberEmail(request: Request): Promise<string | null> {
 // --- Font List (dynamic from upstream repo) ---
 
 const FONT_SOURCE_PATH = 'lib/EpdFont/builtinFonts/source';
-const UPSTREAM_REPO = 'crosspoint-reader/crosspoint-reader';
+const FONT_UPSTREAM_REPO = 'crosspoint-reader/crosspoint-reader';
 const FONT_CACHE_KEY = 'font-tree';
 const FONT_CACHE_TTL = 60 * 60; // 1 hour
 
@@ -1024,7 +1037,7 @@ async function fetchFontTree(env: Env): Promise<FontTree> {
 
   // Fetch the git tree for the source fonts directory recursively
   const res = await fetch(
-    `https://api.github.com/repos/${UPSTREAM_REPO}/contents/${FONT_SOURCE_PATH}`,
+    `https://api.github.com/repos/${FONT_UPSTREAM_REPO}/contents/${FONT_SOURCE_PATH}`,
     { headers: ghHeaders }
   );
   if (!res.ok) {
@@ -1040,7 +1053,7 @@ async function fetchFontTree(env: Env): Promise<FontTree> {
   for (const dir of dirs) {
     if (dir.type !== 'dir') continue;
     const familyRes = await fetch(
-      `https://api.github.com/repos/${UPSTREAM_REPO}/contents/${FONT_SOURCE_PATH}/${dir.name}`,
+      `https://api.github.com/repos/${FONT_UPSTREAM_REPO}/contents/${FONT_SOURCE_PATH}/${dir.name}`,
       { headers: ghHeaders }
     );
     if (!familyRes.ok) continue;
@@ -2295,7 +2308,7 @@ async function handleBetaCreate(
   const releaseRepoRaw = formData.get('releaseRepo');
   const releaseRepo = (typeof releaseRepoRaw === 'string' && releaseRepoRaw.trim())
     ? releaseRepoRaw.trim()
-    : 'crosspoint-reader/crosspoint-reader';
+    : FORK_FULL;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     return json({ error: 'Name is required' }, 400, headers);
@@ -2392,7 +2405,7 @@ async function handleBetaUpdate(
   if (body.releaseTag !== undefined && body.releaseTag !== '') {
     const repoSpec = (body.releaseRepo && body.releaseRepo.trim())
       ? body.releaseRepo.trim()
-      : 'crosspoint-reader/crosspoint-reader';
+      : FORK_FULL;
     const [owner, repo] = repoSpec.split('/');
     if (!owner || !repo) {
       return json({ error: 'Invalid releaseRepo (use "owner/repo")' }, 400, headers);
@@ -2515,7 +2528,7 @@ async function getOrComputeR2Sha(
 async function fetchStableForCatalog(env: Env): Promise<CatalogRelease | null> {
   try {
     const res = await fetch(
-      'https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest',
+      `https://api.github.com/repos/${FORK_FULL}/releases/latest`,
       { headers: ghFetchHeaders(env), cf: { cacheTtl: 300, cacheEverything: true } as RequestInitCfProperties }
     );
     if (!res.ok) return null;
@@ -2606,6 +2619,58 @@ async function fetchBetasForCatalog(env: Env): Promise<CatalogRelease[]> {
     });
   }
   return out;
+}
+
+// --- Upstream Sync Status ---
+// Compares the fork's master branch with upstream's master branch via the
+// GitHub compare API. The frontend uses this to show how many commits behind
+// (or ahead) the fork is relative to upstream CrossPoint Reader.
+
+interface UpstreamStatus {
+  fork: string;
+  upstream: string;
+  behindBy: number;
+  aheadBy: number;
+  status: 'synced' | 'behind' | 'ahead' | 'diverged';
+  compareUrl: string;
+}
+
+async function handleUpstreamStatus(
+  env: Env,
+  headers: Record<string, string>
+): Promise<Response> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${UPSTREAM_FULL}/compare/master...${FORK_FULL}:master`,
+      { headers: ghFetchHeaders(env), cf: { cacheTtl: 300, cacheEverything: true } as RequestInitCfProperties }
+    );
+    if (!res.ok) {
+      return json({ error: 'Failed to fetch upstream comparison' }, 502, headers);
+    }
+    const data = await res.json() as {
+      behind_by: number;
+      ahead_by: number;
+      status: string;
+      html_url: string;
+    };
+
+    const status: UpstreamStatus = {
+      fork: FORK_FULL,
+      upstream: UPSTREAM_FULL,
+      behindBy: data.behind_by || 0,
+      aheadBy: data.ahead_by || 0,
+      status: data.behind_by === 0 && data.ahead_by === 0 ? 'synced'
+            : data.behind_by > 0 && data.ahead_by === 0 ? 'behind'
+            : data.behind_by === 0 && data.ahead_by > 0 ? 'ahead'
+            : 'diverged',
+      compareUrl: data.html_url || `https://github.com/${UPSTREAM_FULL}/compare/master...${FORK_FULL}:master`,
+    };
+
+    return json(status, 200, { ...headers, 'Cache-Control': 'public, max-age=300' });
+  } catch (err) {
+    console.error('Upstream status fetch failed:', err);
+    return json({ error: 'Failed to compute upstream status' }, 502, headers);
+  }
 }
 
 async function handleCatalog(

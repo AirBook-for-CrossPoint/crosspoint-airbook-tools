@@ -47,7 +47,7 @@ jobs:
       - name: Checkout crosspoint-reader
         uses: actions/checkout@v6
         with:
-          repository: crosspoint-reader/crosspoint-reader
+          repository: Yoddikko/crosspoint-reader
           ref: master
           submodules: recursive
           fetch-depth: 0
