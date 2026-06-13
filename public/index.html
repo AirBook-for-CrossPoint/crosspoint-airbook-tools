@@ -1526,22 +1526,7 @@
     }
 
     async function loadX3Summary() {
-      const show = (text) => {
-        const el = document.getElementById('x3-changelog-summary');
-        el.textContent = text;
-        el.classList.remove('hidden');
-      };
-      const tryFetch = async (url) => {
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.summary || null;
-      };
-      try {
-        let summary = await tryFetch('/api/build/summary');
-        if (!summary) summary = await tryFetch('/api/build/summary?regenerate=1');
-        if (summary) show(summary);
-      } catch {}
+      // Summary requires Worker/LLM backend; disabled on static Pages.
     }
 
     document.querySelectorAll('.fw-btn').forEach(btn => {
@@ -1785,7 +1770,12 @@
         btn.disabled = true;
         label.textContent = 'Downloading...';
         try {
-          const res = await fetch('/api/release/firmware');
+          const relRes = await fetch('https://api.github.com/repos/Yoddikko/crosspoint-reader/releases/latest', { headers: { Accept: 'application/vnd.github.v3+json' } });
+          if (!relRes.ok) throw new Error(`Release lookup failed (${relRes.status})`);
+          const rel = await relRes.json();
+          const asset = rel.assets?.find(a => a.name.endsWith('firmware.bin'));
+          if (!asset) throw new Error('No firmware.bin in latest release');
+          const res = await fetch(asset.browser_download_url);
           if (!res.ok) throw new Error(`Download failed (${res.status})`);
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
@@ -1812,20 +1802,26 @@
       const badge = document.getElementById('upstream-sync-badge');
       if (!badge) return;
       try {
-        const res = await fetch('/api/upstream-status');
-        if (!res.ok) throw new Error('upstream status fetch failed');
+        const res = await fetch(
+          'https://api.github.com/repos/Yoddikko/crosspoint-reader/compare/crosspoint-reader:master...master',
+          { headers: { Accept: 'application/vnd.github.v3+json' } }
+        );
+        if (!res.ok) throw new Error('compare failed');
         const s = await res.json();
+        const behind = s.behind_by || 0;
+        const ahead = s.ahead_by || 0;
         let color, label;
-        if (s.behindBy === 0 && s.aheadBy === 0) {
+        if (behind === 0 && ahead === 0) {
           color = '#4a7a62'; label = 'In sync with upstream';
-        } else if (s.behindBy > 0 && s.aheadBy === 0) {
-          color = '#d97706'; label = `${s.behindBy} commit${s.behindBy>1?'s':''} behind upstream`;
-        } else if (s.aheadBy > 0 && s.behindBy === 0) {
-          color = '#4a7a62'; label = `${s.aheadBy} commit${s.aheadBy>1?'s':''} ahead of upstream`;
+        } else if (behind > 0 && ahead === 0) {
+          color = '#d97706'; label = `${behind} commit${behind>1?'s':''} behind upstream`;
+        } else if (ahead > 0 && behind === 0) {
+          color = '#4a7a62'; label = `${ahead} commit${ahead>1?'s':''} ahead of upstream`;
         } else {
-          color = '#dc2626'; label = `diverged: +${s.aheadBy} / -${s.behindBy}`;
+          color = '#dc2626'; label = `diverged: +${ahead} / -${behind}`;
         }
-        badge.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:2px"></span><a href="${s.compareUrl}" target="_blank" rel="noopener" class="font-medium no-underline hover:underline" style="color:inherit">${label}</a>`;
+        const compareUrl = s.html_url || 'https://github.com/crosspoint-reader/crosspoint-reader/compare/master...Yoddikko:crosspoint-reader:master';
+        badge.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:2px"></span><a href="${compareUrl}" target="_blank" rel="noopener" class="font-medium no-underline hover:underline" style="color:inherit">${label}</a>`;
       } catch (err) {
         console.error('Upstream status:', err);
         badge.textContent = '';

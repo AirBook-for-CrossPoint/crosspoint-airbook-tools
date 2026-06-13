@@ -205,9 +205,25 @@ async function loadCatalog() {
   state.loading = true;
   renderFirmwareList();
   try {
-    const res = await fetch('/api/catalog');
-    if (!res.ok) throw new Error(`Catalog request failed: ${res.status}`);
-    state.catalog = await res.json();
+    const releaseRes = await fetch(
+      'https://api.github.com/repos/Yoddikko/crosspoint-reader/releases/latest',
+      { headers: { Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!releaseRes.ok) throw new Error(`Release request failed: ${releaseRes.status}`);
+    const release = await releaseRes.json();
+    const asset = release.assets?.find(a => a.name.endsWith('firmware.bin'));
+    state.catalog = {
+      releases: [{
+        id: `stable-${release.tag_name}`,
+        name: release.name || release.tag_name,
+        channel: 'stable',
+        version: release.tag_name,
+        released_at: release.published_at,
+        firmware_url: asset?.browser_download_url || release.html_url,
+        size: asset?.size || 0,
+        supported_devices: ['x3', 'x4'],
+      }],
+    };
   } catch (err) {
     console.error(err);
     state.catalog = { releases: [] };

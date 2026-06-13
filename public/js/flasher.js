@@ -580,97 +580,84 @@ export class CrossPointFlasher {
 }
 
 // --- Firmware Download Helpers ---
+// All backed by the GitHub Releases API so the site works as a static GitHub Pages deploy.
+
+const FORK_OWNER = 'Yoddikko';
+const FORK_REPO = 'crosspoint-reader';
+const GH_API = `https://api.github.com/repos/${FORK_OWNER}/${FORK_REPO}`;
+
+async function ghFetch(path) {
+  const res = await fetch(`${GH_API}${path}`, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  });
+  if (!res.ok) throw new Error(`GitHub API ${path}: ${res.status}`);
+  return res.json();
+}
+
+async function ghFetchRaw(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
 
 export async function fetchEarlyAccessFirmware() {
-  const res = await fetch('/api/build/firmware');
-  if (!res.ok) throw new Error(`Failed to download firmware: ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
+  return fetchReleaseFirmware();
 }
 
 export async function fetchReleaseFirmware(model = 'x4') {
-  const res = await fetch('/api/release/firmware');
-  if (!res.ok) throw new Error(`Failed to download release firmware: ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
+  const release = await ghFetch('/releases/latest');
+  const asset = release.assets.find(a => a.name.endsWith('firmware.bin'));
+  if (!asset) throw new Error('No firmware.bin in latest release');
+  return ghFetchRaw(asset.browser_download_url);
 }
 
 export async function fetchStockFirmware(model, lang) {
-  const res = await fetch(`/api/firmware/stock?model=${model}&lang=${lang}`);
-  if (!res.ok) throw new Error(`Failed to download stock firmware: ${res.status}`);
-  return { data: new Uint8Array(await res.arrayBuffer()), version: res.headers.get('X-Firmware-Version') || '' };
+  throw new Error('Stock firmware download requires the Worker backend. Use a custom .bin instead.');
 }
 
 export async function fetchStockFirmwareInfo(model, lang) {
-  const res = await fetch(`/api/firmware/stock/info?model=${model}&lang=${lang}`);
-  if (!res.ok) return null;
-  return res.json();
+  return null;
 }
 
 export async function fetchBuildMeta() {
-  const res = await fetch('/api/build/latest');
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const commits = await ghFetch('/commits?sha=master&per_page=1');
+    if (!commits.length) return null;
+    const c = commits[0];
+    return {
+      version: `master-${c.sha.substring(0, 7)}`,
+      commit: c.sha,
+      commitShort: c.sha.substring(0, 7),
+      buildDate: c.commit.author.date,
+      status: 'success',
+      changelog: [{ message: c.commit.message, author: c.commit.author.name, date: c.commit.author.date }],
+    };
+  } catch { return null; }
 }
 
-// --- Custom Font Build Helpers ---
+// --- Custom Font Build Helpers (require Worker backend) ---
 
-export async function fetchFontList() {
-  const res = await fetch('/api/fonts');
-  if (!res.ok) return null;
-  return res.json();
-}
-
-export async function fetchCustomBuildStatus() {
-  const res = await fetch('/api/custom-build/status');
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.build;
-}
-
-export async function uploadCustomFonts(replacements, labels = {}, sizes = {}) {
-  const formData = new FormData();
-  for (const [path, file] of Object.entries(replacements)) {
-    formData.append(path, file);
-  }
-  for (const [family, label] of Object.entries(labels)) {
-    formData.append(`label:${family}`, label);
-  }
-  for (const [family, sizeArr] of Object.entries(sizes)) {
-    formData.append(`sizes:${family}`, sizeArr.join(','));
-  }
-  const res = await fetch('/api/custom-build/upload', {
-    method: 'POST',
-    body: formData,
-  });
-  if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || `Upload failed: ${res.status}`);
-  }
-  return res.json();
-}
-
-export async function fetchCustomFirmware() {
-  const res = await fetch('/api/custom-build/firmware');
-  if (!res.ok) throw new Error(`Failed to download custom firmware: ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
-}
-
-export async function fetchBetaBuilds() {
-  const res = await fetch('/api/beta');
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.builds || [];
-}
-
-export async function fetchBetaFirmware(id) {
-  const res = await fetch(`/api/beta/${id}/firmware`);
-  if (!res.ok) throw new Error(`Failed to download beta firmware: ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
-}
+export async function fetchFontList() { return null; }
+export async function fetchCustomBuildStatus() { return null; }
+export async function uploadCustomFonts() { throw new Error('Custom font builds require the Worker backend.'); }
+export async function fetchCustomFirmware() { throw new Error('Custom firmware requires the Worker backend.'); }
+export async function fetchBetaBuilds() { return []; }
+export async function fetchBetaFirmware(id) { throw new Error('Beta builds require the Worker backend.'); }
 
 export async function fetchReleaseMeta() {
-  const res = await fetch('/api/release/latest');
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const release = await ghFetch('/releases/latest');
+    const asset = release.assets?.find(a => a.name.endsWith('firmware.bin'));
+    return {
+      tag: release.tag_name,
+      name: release.name,
+      htmlUrl: release.html_url,
+      publishedAt: release.published_at,
+      body: release.body,
+      firmwareUrl: asset?.browser_download_url || null,
+      firmwareSize: asset?.size || null,
+    };
+  } catch { return null; }
 }
 
 // --- File download helper ---
