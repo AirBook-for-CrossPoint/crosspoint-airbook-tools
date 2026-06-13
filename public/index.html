@@ -30,6 +30,9 @@
 </head>
 <body class="bg-stone-50 min-h-screen flex flex-col items-center justify-center px-5 py-16 selection:bg-sky-100">
 
+  <!-- JS error banner (hidden unless a fatal error occurs) -->
+  <div id="js-error-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-red-600 px-4 py-3 text-white text-sm text-center font-medium shadow-lg"></div>
+
   <main class="w-full max-w-lg mx-auto text-center">
 
     <!-- Hero -->
@@ -125,7 +128,24 @@
   </main>
 
   <script type="module">
-    import { CrossPointFlasher, fetchReleaseFirmware, downloadBlob } from '/js/flasher.js';
+    // Global error trap — shows errors visibly on the page
+    const errBanner = document.getElementById('js-error-banner');
+    window.onerror = (msg, src, line) => {
+      errBanner.classList.remove('hidden');
+      errBanner.textContent = `JS Error: ${msg} (line ${line})`;
+    };
+
+    let CrossPointFlasher, fetchReleaseFirmware, downloadBlob;
+    try {
+      const mod = await import('/js/flasher.js');
+      CrossPointFlasher = mod.CrossPointFlasher;
+      fetchReleaseFirmware = mod.fetchReleaseFirmware;
+      downloadBlob = mod.downloadBlob;
+    } catch (e) {
+      errBanner.classList.remove('hidden');
+      errBanner.textContent = `Failed to load flasher.js: ${e.message}`;
+      throw e;
+    }
 
     // --- UI elements ---
     const flashBtn = document.getElementById('flash-btn');
