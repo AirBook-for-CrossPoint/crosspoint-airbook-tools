@@ -46,9 +46,12 @@
         Send ebooks from iPhone or iPad to your e-reader over Bluetooth Low Energy.
       </p>
 
-      <!-- Upstream sync badge -->
-      <div class="mt-5" id="upstream-badge">
-        <span class="inline-block h-5 w-20 rounded-full bg-stone-100 animate-pulse"></span>
+      <!-- Status badges -->
+      <div class="mt-5 flex flex-col items-center gap-2">
+        <div id="upstream-badge">
+          <span class="inline-block h-5 w-20 rounded-full bg-stone-100 animate-pulse"></span>
+        </div>
+        <div id="release-badge"></div>
       </div>
     </header>
 
@@ -115,6 +118,38 @@
 
   <script type="module">
     import { CrossPointFlasher, fetchReleaseFirmware, downloadBlob } from '/js/flasher.js';
+
+    // --- Release freshness badge ---
+    (async function loadReleaseBadge() {
+      const el = document.getElementById('release-badge');
+      try {
+        const relRes = await fetch(
+          'https://api.github.com/repos/Yoddikko/crosspoint-reader/releases/latest',
+          { headers: { Accept: 'application/vnd.github.v3+json' } }
+        );
+        if (!relRes.ok) throw new Error(`Release API ${relRes.status}`);
+        const release = await relRes.json();
+        const tag = release.tag_name;
+        const published = new Date(release.published_at).toLocaleDateString();
+
+        const cmpRes = await fetch(
+          `https://api.github.com/repos/Yoddikko/crosspoint-reader/compare/${tag}...master`,
+          { headers: { Accept: 'application/vnd.github.v3+json' } }
+        );
+        if (!cmpRes.ok) throw new Error(`Compare API ${cmpRes.status}`);
+        const cmp = await cmpRes.json();
+        const ahead = cmp.ahead_by || 0;
+
+        if (ahead === 0) {
+          el.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Release <code class="text-[11px] bg-emerald-100/50 rounded px-1 font-mono">${tag}</code> &middot; ${published} &middot; current</span>`;
+        } else {
+          el.innerHTML = `<a href="https://github.com/Yoddikko/crosspoint-reader/compare/${tag}...master" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100 transition-colors">Release <code class="text-[11px] bg-amber-100/50 rounded px-1 font-mono">${tag}</code> &middot; ${published} &middot; ${ahead} commit${ahead > 1 ? 's' : ''} behind master</a>`;
+        }
+      } catch (err) {
+        console.error('Release badge:', err);
+        el.innerHTML = '';
+      }
+    })();
 
     // --- Upstream sync badge ---
     (async function loadUpstreamBadge() {
