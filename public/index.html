@@ -63,20 +63,28 @@
 
         <!-- Flash button -->
         <button id="flash-btn" type="button"
-          class="mt-5 w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-sky-500 px-5 py-3.5 text-sm font-semibold text-white hover:bg-sky-600 active:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+          class="mt-5 w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-sky-500 px-5 py-3.5 text-sm font-semibold text-white hover:bg-sky-600 active:bg-sky-700 transition-all disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed shadow-sm">
+          <svg id="flash-icon" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
           </svg>
-          Flash with WebSerial
+          <span id="flash-label">Flash with WebSerial</span>
+          <svg id="flash-spinner" class="hidden size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
         </button>
 
         <!-- SD Download button -->
         <button id="download-btn" type="button"
-          class="mt-3 w-full inline-flex items-center justify-center gap-2.5 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50 active:bg-stone-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          class="mt-3 w-full inline-flex items-center justify-center gap-2.5 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50 active:bg-stone-100 transition-all disabled:bg-stone-100 disabled:text-stone-400 disabled:cursor-not-allowed">
+          <svg id="dl-icon" class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
           </svg>
-          Download .bin for SD card
+          <span id="dl-label">Download .bin for SD card</span>
+          <svg id="dl-spinner" class="hidden size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
         </button>
 
         <!-- Progress -->
@@ -91,8 +99,8 @@
           <p id="progress-detail" class="mt-1.5 text-xs text-stone-400"></p>
         </div>
 
-        <!-- Status message -->
-        <div id="status-msg" class="hidden mt-4 text-sm rounded-lg px-3 py-2"></div>
+        <!-- Status message (always visible, shows ready state) -->
+        <div id="status-msg" class="mt-4 text-sm rounded-lg px-3 py-2 text-stone-400 bg-stone-50 ring-1 ring-stone-200"></div>
 
         <!-- Help -->
         <p class="mt-5 text-xs text-stone-400 leading-relaxed">
@@ -118,6 +126,28 @@
 
   <script type="module">
     import { CrossPointFlasher, fetchReleaseFirmware, downloadBlob } from '/js/flasher.js';
+
+    // --- UI elements ---
+    const flashBtn = document.getElementById('flash-btn');
+    const flashLabel = document.getElementById('flash-label');
+    const flashIcon = document.getElementById('flash-icon');
+    const flashSpinner = document.getElementById('flash-spinner');
+    const downloadBtn = document.getElementById('download-btn');
+    const dlLabel = document.getElementById('dl-label');
+    const dlIcon = document.getElementById('dl-icon');
+    const dlSpinner = document.getElementById('dl-spinner');
+    const progressArea = document.getElementById('progress-area');
+    const progressStep = document.getElementById('progress-step');
+    const progressPct = document.getElementById('progress-pct');
+    const progressBar = document.getElementById('progress-bar');
+    const progressDetail = document.getElementById('progress-detail');
+    const statusMsg = document.getElementById('status-msg');
+
+    let currentStepIdx = 0;
+    const TOTAL_STEPS = 6;
+
+    // Confirm JS loaded
+    statusMsg.innerHTML = 'Ready &mdash; connect your device via USB and click <strong>Flash with WebSerial</strong>.';
 
     // --- Release freshness badge ---
     (async function loadReleaseBadge() {
@@ -177,21 +207,22 @@
       }
     })();
 
-    // --- UI state ---
-    const flashBtn = document.getElementById('flash-btn');
-    const downloadBtn = document.getElementById('download-btn');
-    const progressArea = document.getElementById('progress-area');
-    const progressStep = document.getElementById('progress-step');
-    const progressPct = document.getElementById('progress-pct');
-    const progressBar = document.getElementById('progress-bar');
-    const progressDetail = document.getElementById('progress-detail');
-    const statusMsg = document.getElementById('status-msg');
+    // --- Helpers ---
+    function setButtonLoading(btn, label, icon, spinner, text) {
+      btn.disabled = true;
+      icon.classList.add('hidden');
+      spinner.classList.remove('hidden');
+      label.textContent = text;
+    }
 
-    let currentStepIdx = 0;
-    const TOTAL_STEPS = 6;
+    function resetButton(btn, label, icon, spinner, originalText, originalIconClass) {
+      btn.disabled = false;
+      icon.classList.remove('hidden');
+      spinner.classList.add('hidden');
+      label.textContent = originalText;
+    }
 
     function showStatus(text, type = 'info') {
-      statusMsg.classList.remove('hidden');
       const colors = {
         info: 'text-stone-700 bg-stone-50 ring-1 ring-stone-200',
         success: 'text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200',
@@ -215,23 +246,19 @@
       progressBar.style.width = '0%';
     }
 
-    function setButtons(disabled) {
-      flashBtn.disabled = disabled;
-      downloadBtn.disabled = disabled;
-    }
-
     // --- Flash ---
     flashBtn.addEventListener('click', async () => {
       if (flashBtn.disabled) return;
-      setButtons(true);
+      setButtonLoading(flashBtn, flashLabel, flashIcon, flashSpinner, 'Connecting...');
+      downloadBtn.disabled = true;
       hideProgress();
-      statusMsg.classList.add('hidden');
       currentStepIdx = 0;
 
       let flasher = null;
       try {
         showStatus('Fetching latest firmware from GitHub Releases&hellip;', 'info');
         const firmware = await fetchReleaseFirmware();
+        flashLabel.textContent = 'Downloaded firmware';
 
         showStatus('Select <strong>ESP32-S3 USB Serial</strong> from the port list&hellip;', 'info');
         const port = await CrossPointFlasher.requestPort();
@@ -240,6 +267,7 @@
         await flasher.flashFirmware(firmware, {
           onStepChange: (idx, step, status) => {
             currentStepIdx = idx;
+            flashLabel.textContent = step;
             if (status === 'running') {
               setProgress(step, (idx / TOTAL_STEPS) * 100);
             } else if (status === 'done') {
@@ -258,34 +286,40 @@
 
         showStatus('Firmware flashed successfully. Your device is now running <strong>CrossPoint + AirBook</strong>.', 'success');
         hideProgress();
+        resetButton(flashBtn, flashLabel, flashIcon, flashSpinner, 'Flash with WebSerial');
       } catch (err) {
         console.error(err);
         showStatus(err.message || 'Flashing failed. Please try again.', 'error');
         hideProgress();
+        resetButton(flashBtn, flashLabel, flashIcon, flashSpinner, 'Flash with WebSerial');
       } finally {
         if (flasher) {
           try { await flasher.disconnect(); } catch {}
         }
-        setButtons(false);
+        flashBtn.disabled = false;
+        downloadBtn.disabled = false;
       }
     });
 
     // --- SD Download ---
     downloadBtn.addEventListener('click', async () => {
       if (downloadBtn.disabled) return;
-      setButtons(true);
-      statusMsg.classList.add('hidden');
+      setButtonLoading(downloadBtn, dlLabel, dlIcon, dlSpinner, 'Downloading...');
+      flashBtn.disabled = true;
 
       try {
-        showStatus('Downloading firmware&hellip;', 'info');
+        showStatus('Downloading firmware from GitHub Releases&hellip;', 'info');
         const firmware = await fetchReleaseFirmware();
         downloadBlob(firmware, 'update.bin');
         showStatus('Saved as <code class="text-[11px] bg-emerald-100 rounded px-1 py-0.5 font-mono">update.bin</code> &mdash; place on your SD card root, then insert and reboot.', 'success');
+        resetButton(downloadBtn, dlLabel, dlIcon, dlSpinner, 'Download .bin for SD card');
       } catch (err) {
         console.error(err);
         showStatus(err.message || 'Download failed. Please try again.', 'error');
+        resetButton(downloadBtn, dlLabel, dlIcon, dlSpinner, 'Download .bin for SD card');
       } finally {
-        setButtons(false);
+        flashBtn.disabled = false;
+        downloadBtn.disabled = false;
       }
     });
   </script>
