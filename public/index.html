@@ -175,16 +175,23 @@
       errBanner.textContent = `JS Error: ${msg} (line ${line})`;
     };
 
-    let CrossPointFlasher, fetchReleaseFirmware, downloadBlob;
+    let CrossPointFlasher, downloadBlob;
     try {
       const mod = await import('./js/flasher.js');
       CrossPointFlasher = mod.CrossPointFlasher;
-      fetchReleaseFirmware = mod.fetchReleaseFirmware;
       downloadBlob = mod.downloadBlob;
     } catch (e) {
       errBanner.classList.remove('hidden');
       errBanner.textContent = `Failed to load flasher.js: ${e.message}`;
       throw e;
+    }
+
+    // Same-origin: GitHub release-assets redirects strip CORS headers, so the
+    // pages workflow bundles firmware.bin into public/firmware/ at deploy time.
+    async function fetchReleaseFirmware() {
+      const res = await fetch('./firmware/firmware.bin', { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`Firmware not bundled yet (HTTP ${res.status}). Try again in a minute.`);
+      return new Uint8Array(await res.arrayBuffer());
     }
 
     // --- UI elements ---

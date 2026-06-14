@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # refresh firmware.bin every 6h
+  repository_dispatch:
+    types: [release-updated]
 
 permissions:
   contents: read
@@ -22,6 +26,32 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Bundle latest firmware.bin for same-origin fetch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p public/firmware
+          # Pull the firmware.bin asset from the latest Yoddikko/crosspoint-reader release
+          # so the GitHub Pages site can fetch it from same-origin (release-assets.githubusercontent.com
+          # 302 redirects don't set CORS headers, so direct fetch from the browser fails).
+          ASSET_URL=$(gh api repos/Yoddikko/crosspoint-reader/releases/latest \
+            --jq '.assets[] | select(.name=="firmware.bin") | .url')
+          if [ -z "$ASSET_URL" ]; then
+            echo "No firmware.bin asset found on latest release"
+            exit 1
+          fi
+          curl -sL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            -o public/firmware/firmware.bin \
+            "$ASSET_URL"
+          # Capture release metadata so the page can show the tag without a CORS-prone API call.
+          gh api repos/Yoddikko/crosspoint-reader/releases/latest \
+            --jq '{tag: .tag_name, name: .name, published_at: .published_at, html_url: .html_url, size: ([.assets[] | select(.name=="firmware.bin") | .size][0])}' \
+            > public/firmware/release.json
+          ls -lh public/firmware/
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
