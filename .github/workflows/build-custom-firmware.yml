@@ -47,7 +47,7 @@ jobs:
       - name: Checkout crosspoint-reader
         uses: actions/checkout@v6
         with:
-          repository: Yoddikko/crosspoint-reader
+          repository: AirBook-for-CrossPoint/crosspoint-reader-with-aribook
           ref: master
           submodules: recursive
           fetch-depth: 0

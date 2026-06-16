@@ -1,10 +1,10 @@
 import type { Env, BuildMetadata, CustomBuildMetadata, FontBuildMetadata, ThemeBuildMetadata, FontTree, FontFile, BetaBuild, BetaSource } from './types';
 
 // --- Fork configuration ---
-// This site serves firmware from the Yoddikko/crosspoint-reader fork (AirBook + upstream CrossPoint).
+// This site serves firmware from the AirBook-for-CrossPoint/crosspoint-reader-with-aribook fork (AirBook + upstream CrossPoint).
 // Set these env vars to override: FORK_REPO_OWNER, FORK_REPO_NAME, UPSTREAM_REPO_OWNER, UPSTREAM_REPO_NAME
-const FORK_OWNER = 'Yoddikko';
-const FORK_REPO = 'crosspoint-reader';
+const FORK_OWNER = 'AirBook-for-CrossPoint';
+const FORK_REPO = 'crosspoint-reader-with-aribook';
 const UPSTREAM_OWNER = 'crosspoint-reader';
 const UPSTREAM_REPO = 'crosspoint-reader';
 const FORK_FULL = `${FORK_OWNER}/${FORK_REPO}`;

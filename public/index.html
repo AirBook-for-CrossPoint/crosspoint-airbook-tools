@@ -135,7 +135,7 @@
 
     <!-- AirBook iOS Companion -->
     <section class="mt-5 w-full">
-      <a href="https://github.com/Yoddikko/Airbook-for-CrossPoint" target="_blank" rel="noopener"
+      <a href="https://github.com/AirBook-for-CrossPoint/Airbook-iOS-for-CrossPoint" target="_blank" rel="noopener"
         class="group flex items-center gap-4 rounded-2xl bg-stone-900 hover:bg-stone-800 transition-all duration-150 p-5 sm:p-6 shadow-[0_2px_30px_-8px_rgba(15,23,42,0.18)] ring-1 ring-stone-950/10 no-underline">
         <span class="flex shrink-0 size-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15 group-hover:bg-white/15 transition-colors">
           <!-- Apple logo (white) -->
@@ -168,7 +168,7 @@
     <!-- Footer -->
     <footer class="mt-8 text-sm space-y-2.5">
       <div class="flex items-center justify-center gap-x-5 gap-y-1 flex-wrap">
-        <a href="https://github.com/Yoddikko/crosspoint-reader" target="_blank" rel="noopener" class="text-stone-600 hover:text-stone-900 underline underline-offset-4 decoration-stone-300 hover:decoration-stone-500 transition-colors">Fork on GitHub</a>
+        <a href="https://github.com/AirBook-for-CrossPoint/crosspoint-reader-with-aribook" target="_blank" rel="noopener" class="text-stone-600 hover:text-stone-900 underline underline-offset-4 decoration-stone-300 hover:decoration-stone-500 transition-colors">Fork on GitHub</a>
         <a href="https://github.com/crosspoint-reader/crosspoint-reader" target="_blank" rel="noopener" class="text-stone-600 hover:text-stone-900 underline underline-offset-4 decoration-stone-300 hover:decoration-stone-500 transition-colors">Upstream Project</a>
       </div>
       <p class="text-xs text-stone-400 mt-4">
@@ -239,7 +239,7 @@
       const el = document.getElementById('upstream-badge');
       try {
         const res = await fetch(
-          'https://api.github.com/repos/Yoddikko/crosspoint-reader/compare/crosspoint-reader:master...master',
+          'https://api.github.com/repos/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/compare/crosspoint-reader:master...master',
           { headers: { Accept: 'application/vnd.github.v3+json' } }
         );
         if (!res.ok) throw new Error(`API ${res.status}`);
@@ -249,7 +249,7 @@
           el.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">${ICONS.check} In sync with upstream <code class="text-[11px] bg-emerald-100/60 rounded px-1 font-mono">master</code></span>`;
           return;
         }
-        el.innerHTML = `<a href="https://github.com/crosspoint-reader/crosspoint-reader/compare/master...Yoddikko:crosspoint-reader:master" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100 transition-colors">${ICONS.sync} ${behind} behind upstream</a>`;
+        el.innerHTML = `<a href="https://github.com/crosspoint-reader/crosspoint-reader/compare/master...AirBook-for-CrossPoint:crosspoint-reader-with-aribook:master" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 hover:bg-amber-100 transition-colors">${ICONS.sync} ${behind} behind upstream</a>`;
       } catch (err) {
         console.error('Upstream badge:', err);
         el.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-500 ring-1 ring-inset ring-stone-200">Upstream status unavailable</span>`;
@@ -262,7 +262,7 @@
       const tagPill = document.getElementById('firmware-tag');
       try {
         const relRes = await fetch(
-          'https://api.github.com/repos/Yoddikko/crosspoint-reader/releases/latest',
+          'https://api.github.com/repos/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/releases/latest',
           { headers: { Accept: 'application/vnd.github.v3+json' } }
         );
         if (!relRes.ok) throw new Error(`Release API ${relRes.status}`);
@@ -274,7 +274,7 @@
         tagPill.classList.remove('hidden');
 
         const cmpRes = await fetch(
-          `https://api.github.com/repos/Yoddikko/crosspoint-reader/compare/${tag}...master`,
+          `https://api.github.com/repos/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/compare/${tag}...master`,
           { headers: { Accept: 'application/vnd.github.v3+json' } }
         );
         if (!cmpRes.ok) throw new Error(`Compare API ${cmpRes.status}`);
@@ -284,7 +284,7 @@
         if (ahead === 0) {
           el.innerHTML = `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">${ICONS.tag} ${tag} <span class="text-emerald-600/70">&middot; ${published} &middot; latest</span></span>`;
         } else {
-          el.innerHTML = `<a href="https://github.com/Yoddikko/crosspoint-reader/compare/${tag}...master" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20 hover:bg-sky-100 transition-colors">${ICONS.tag} ${tag} <span class="text-sky-600/80">&middot; ${published} &middot; ${ahead} ahead on master</span></a>`;
+          el.innerHTML = `<a href="https://github.com/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/compare/${tag}...master" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20 hover:bg-sky-100 transition-colors">${ICONS.tag} ${tag} <span class="text-sky-600/80">&middot; ${published} &middot; ${ahead} ahead on master</span></a>`;
         }
       } catch (err) {
         console.error('Release badge:', err);

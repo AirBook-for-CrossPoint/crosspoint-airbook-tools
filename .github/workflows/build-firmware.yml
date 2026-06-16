@@ -26,7 +26,7 @@ jobs:
         run: |
           # Get latest upstream commit
           COMMIT_JSON=$(curl -s -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
-            "https://api.github.com/repos/Yoddikko/crosspoint-reader/commits/master")
+            "https://api.github.com/repos/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/commits/master")
 
           LATEST=$(echo "$COMMIT_JSON" | jq -r '.sha')
           SHORT="${LATEST:0:7}"
@@ -86,7 +86,7 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         uses: actions/checkout@v6
         with:
-          repository: Yoddikko/crosspoint-reader
+          repository: AirBook-for-CrossPoint/crosspoint-reader-with-aribook
           ref: master
           submodules: recursive
           fetch-depth: 0

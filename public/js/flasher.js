@@ -582,8 +582,8 @@ export class CrossPointFlasher {
 // --- Firmware Download Helpers ---
 // All backed by the GitHub Releases API so the site works as a static GitHub Pages deploy.
 
-const FORK_OWNER = 'Yoddikko';
-const FORK_REPO = 'crosspoint-reader';
+const FORK_OWNER = 'AirBook-for-CrossPoint';
+const FORK_REPO = 'crosspoint-reader-with-aribook';
 const GH_API = `https://api.github.com/repos/${FORK_OWNER}/${FORK_REPO}`;
 
 async function ghFetch(path) {

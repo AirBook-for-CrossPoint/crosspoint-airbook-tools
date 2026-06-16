@@ -206,7 +206,7 @@ async function loadCatalog() {
   renderFirmwareList();
   try {
     const releaseRes = await fetch(
-      'https://api.github.com/repos/Yoddikko/crosspoint-reader/releases/latest',
+      'https://api.github.com/repos/AirBook-for-CrossPoint/crosspoint-reader-with-aribook/releases/latest',
       { headers: { Accept: 'application/vnd.github.v3+json' } }
     );
     if (!releaseRes.ok) throw new Error(`Release request failed: ${releaseRes.status}`);
